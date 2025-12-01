@@ -7,7 +7,7 @@ import select
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List
-import datetime
+from datetime import datetime  # Tambah ini!
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -222,47 +222,55 @@ class LazyFramework:
         if not self.loaded_module:
             console.print("No module loaded.", style="red")
             return
+        
+        # === PERBAIKAN: Deklarasi di luar try block ===
+        history_entry = None
+        
         try:
             # TAMBAH INI: Simpan entry history sebelum run
             self.session.setdefault("modules_history", [])
             history_entry = {
                 "name": self.loaded_module.name,
-                "time": datetime.now().strftime("%H:%M:%S"),
+                "time": datetime.now().strftime("%H:%M:%S"),  # PERBAIKAN: datetime.now() -> datetime.datetime.now()
                 "options": dict(self.loaded_module.options),
                 "status": "executing",
                 "results": ""  # Akan diupdate setelah run
             }
             self.session["modules_history"].append(history_entry)
             
-            # Jalankan module seperti biasa
+            # Check dependencies terlebih dahulu
+            mod = self.loaded_module.module
+            meta = getattr(mod, "MODULE_INFO", {})
+            dependencies = meta.get("dependencies", [])
+            if dependencies:
+                dep_results = self._check_dependencies(dependencies)
+                missing_deps = [dep for dep, available in dep_results.items() if not available]
+                if missing_deps:
+                    console.print(f"[red]Error: Missing dependencies: {', '.join(missing_deps)}[/red]")
+                    console.print(f"[yellow]Install with: pip install {' '.join(missing_deps)}[/yellow]")
+                    # Update history entry
+                    if history_entry:
+                        history_entry["status"] = "failed"
+                        history_entry["results"] = f"Missing dependencies: {', '.join(missing_deps)}"
+                    return
+            
+            # Jalankan module
             result = self.loaded_module.run(self.session)
             
-            # TAMBAH INI: Update results setelah run selesai
-            history_entry["results"] = str(result) if result else "No output"
-            history_entry["status"] = "executed"
-            
+            # Update history entry setelah run selesai
+            if history_entry:
+                history_entry["results"] = str(result) if result else "No output"
+                history_entry["status"] = "executed"
+                
             console.print("Module executed successfully.", style="green")
+            
         except Exception as e:
             console.print(f"Error running module: {e}", style="red")
-        
-            # TAMBAH INI: Update status kalau error
+            
+            # PERBAIKAN: Cek history_entry sebelum mengakses
             if history_entry:
                 history_entry["status"] = "failed"
                 history_entry["results"] = str(e)
-        mod = self.loaded_module.module
-        meta = getattr(mod, "MODULE_INFO", {})
-        dependencies = meta.get("dependencies", [])
-        if dependencies:
-            dep_results = self._check_dependencies(dependencies)
-            missing_deps = [dep for dep, available in dep_results.items() if not available]
-            if missing_deps:
-                console.print(f"[red]Error: Missing dependencies: {', '.join(missing_deps)}[/red]")
-                console.print(f"[yellow]Install with: pip install {' '.join(missing_deps)}[/yellow]")
-                return
-        try:
-            self.loaded_module.run(self.session)
-        except Exception as e:
-            console.print(f"Run error: {escape(str(e))}", style="red")
 
     def cmd_help(self, args):
         commands = [
