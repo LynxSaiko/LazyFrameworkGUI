@@ -1,248 +1,192 @@
-# Makefile for LazyFramework – OFFICIAL NAME: lazyframework
-# Version: 2.6.0
-# Professional Makefile for Termux and regular Linux systems.
+# ===========================================================================
+# ██╗      █████╗ ███████╗██╗   ██╗    ███████╗██████╗  █████╗ ███╗   ███╗
+# ██║     ██╔══██╗╚══███╔╝╚██╗ ██╔╝    ██╔════╝██╔══██╗██╔══██╗████╗ ████║
+# ██║     ███████║  ███╔╝  ╚████╔╝     █████╗  ██████╔╝███████║██╔████╔██║
+# ██║     ██╔══██║ ███╔╝    ╚██╔╝      ██╔══╝  ██╔══██╗██╔══██║██║╚██╔╝██║
+# ███████╗██║  ██║███████╗   ██║       ██║     ██║  ██║██║  ██║██║ ╚═╝ ██║
+# ╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝       ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
+# 
+#                   P E N T E S T I N G   F R A M E W O R K
+#                           Version: 2.6.0
+# ===========================================================================
 
-# Configuration Variables
+# Configuration
 NAME            := lazyframework
 VERSION         := 2.6.0
+AUTHOR          := LazyHackers
+LICENSE         := GPLv3
 
-# Detect system type
+# ANSI Color Codes
+RESET   := \033[0m
+BOLD    := \033[1m
+RED     := \033[31m
+GREEN   := \033[32m
+YELLOW  := \033[33m
+BLUE    := \033[34m
+MAGENTA := \033[35m
+CYAN    := \033[36m
+WHITE   := \033[37m
+BLACK   := \033[30m
+BRIGHT_RED    := \033[91m
+BRIGHT_GREEN  := \033[92m
+BRIGHT_YELLOW := \033[93m
+BRIGHT_BLUE   := \033[94m
+BRIGHT_MAGENTA:= \033[95m
+BRIGHT_CYAN   := \033[96m
+
+# Background Colors
+BG_BLACK   := \033[40m
+BG_RED     := \033[41m
+BG_GREEN   := \033[42m
+BG_YELLOW  := \033[43m
+BG_BLUE    := \033[44m
+BG_MAGENTA := \033[45m
+BG_CYAN    := \033[46m
+BG_WHITE   := \033[47m
+
+# System Detection
 UNAME_S := $(shell uname -s)
 TERMUX_PREFIX := $(shell echo $$PREFIX 2>/dev/null)
 
-# Detect Linux distribution
+# Detect if running on Termux
 ifeq ($(UNAME_S),Linux)
     ifeq ($(TERMUX_PREFIX),/data/data/com.termux/files/usr)
-        # Termux Android
-        IS_TERMUX := 1
-        DISTRO_NAME := Termux (Android)
-        INSTALL_DIR := /data/data/com.termux/files/home/$(NAME)
-        BIN_DIR := /data/data/com.termux/files/usr/bin
-        DESKTOP_DIR := $(HOME)/.local/share/applications
-        ICON_DIR := $(HOME)/.local/share/icons/hicolor/scalable/apps
-        PIP_CMD := pip
-        NEED_SUDO := 0
-        PKG_MGR := pkg
+        IS_TERMUX    := 1
+        DISTRO_NAME  := Termux
+        INSTALL_DIR  := /data/data/com.termux/files/home/$(NAME)
+        BIN_DIR      := /data/data/com.termux/files/usr/bin
+        DESKTOP_DIR  := $(HOME)/.local/share/applications
+        ICON_DIR     := $(HOME)/.local/share/icons/hicolor/scalable/apps
+        PIP_CMD      := pip
+        NEED_SUDO    := 0
     else
-        # Regular Linux - Detect distribution
-        IS_TERMUX := 0
-        NEED_SUDO := 1
-        PKG_MGR := unknown
-        
-        # Try to detect distribution
-        ifneq ($(wildcard /etc/os-release),)
-            # Modern systems with os-release
-            DISTRO_ID := $(shell grep -E '^ID=' /etc/os-release | cut -d'=' -f2 | tr -d '"' | tr '[:upper:]' '[:lower:]')
-            DISTRO_NAME_TEMP := $(shell grep -E '^PRETTY_NAME=' /etc/os-release | cut -d'=' -f2 | tr -d '"' 2>/dev/null)
-            ifneq ($(DISTRO_NAME_TEMP),)
-                DISTRO_NAME := $(DISTRO_NAME_TEMP)
-            else
-                DISTRO_NAME := Linux
-            endif
-            
-            # Set package manager based on distribution
-            ifeq ($(DISTRO_ID),debian)
-                PKG_MGR := apt-get
-            else ifeq ($(DISTRO_ID),ubuntu)
-                PKG_MGR := apt-get
-            else ifeq ($(DISTRO_ID),kali)
-                PKG_MGR := apt-get
-            else ifeq ($(DISTRO_ID),parrot)
-                PKG_MGR := apt-get
-            else ifeq ($(DISTRO_ID),arch)
-                PKG_MGR := pacman
-            else ifeq ($(DISTRO_ID),manjaro)
-                PKG_MGR := pacman
-            else ifeq ($(DISTRO_ID),fedora)
-                PKG_MGR := dnf
-            else ifeq ($(DISTRO_ID),centos)
-                PKG_MGR := yum
-            else ifeq ($(DISTRO_ID),rhel)
-                PKG_MGR := yum
-            else ifeq ($(DISTRO_ID),opensuse)
-                PKG_MGR := zypper
-            else ifeq ($(DISTRO_ID),void)
-                PKG_MGR := xbps
-            else ifeq ($(DISTRO_ID),alpine)
-                PKG_MGR := apk
-            endif
-        else ifneq ($(wildcard /etc/debian_version),)
-            # Old Debian systems
-            DISTRO_NAME := Debian Linux
-            PKG_MGR := apt-get
-        else ifneq ($(wildcard /etc/redhat-release),)
-            # RedHat based systems
-            DISTRO_NAME := RedHat Linux
-            PKG_MGR := yum
-        else ifneq ($(wildcard /etc/arch-release),)
-            # Arch Linux
-            DISTRO_NAME := Arch Linux
-            PKG_MGR := pacman
-        else ifneq ($(wildcard /etc/gentoo-release),)
-            # Gentoo Linux
-            DISTRO_NAME := Gentoo Linux
-            PKG_MGR := emerge
-        else
-            # Unknown Linux
-            DISTRO_NAME := Generic Linux
-        endif
-        
-        # Set installation paths
-        INSTALL_DIR := /usr/share/$(NAME)
-        BIN_DIR := /usr/bin
-        DESKTOP_DIR := /usr/share/applications
-        ICON_DIR := /usr/share/icons/hicolor/scalable/apps
-        PIP_CMD := pip3
+        IS_TERMUX    := 0
+        DISTRO_NAME  := $(shell lsb_release -si 2>/dev/null || uname -s)
+        INSTALL_DIR  := /usr/share/$(NAME)
+        BIN_DIR      := /usr/bin
+        DESKTOP_DIR  := /usr/share/applications
+        ICON_DIR     := /usr/share/icons/hicolor/scalable/apps
+        PIP_CMD      := pip3
+        NEED_SUDO    := 1
     endif
 else
-    # Non-Linux systems
-    IS_TERMUX := 0
-    DISTRO_NAME := Non-Linux ($(UNAME_S))
-    INSTALL_DIR := /usr/local/share/$(NAME)
-    BIN_DIR := /usr/local/bin
-    DESKTOP_DIR := /usr/local/share/applications
-    ICON_DIR := /usr/local/share/icons/hicolor/scalable/apps
-    PIP_CMD := pip3
-    NEED_SUDO := 1
-    PKG_MGR := unknown
+    IS_TERMUX    := 0
+    DISTRO_NAME  := $(UNAME_S)
+    INSTALL_DIR  := /usr/local/share/$(NAME)
+    BIN_DIR      := /usr/local/bin
+    DESKTOP_DIR  := /usr/local/share/applications
+    ICON_DIR     := /usr/local/share/icons/hicolor/scalable/apps
+    PIP_CMD      := pip3
+    NEED_SUDO    := 1
 endif
 
-# Messages
-MSG_INSTALL     := LazyFramework $(VERSION) successfully installed on $(DISTRO_NAME)!
-MSG_GUI         := "   lazyframework  → GUI mode"
-MSG_CONSOLE     := "   lzfconsole     → console mode"
-MSG_DESKTOP     := "   Desktop entry  : $(DESKTOP_DIR)/lazyframework.desktop"
-MSG_ICON        := "   Icon entry     : $(ICON_DIR)/lazyframework.svg"
-MSG_UNINSTALL   := Uninstallation complete!
-MSG_SUDO_WARN   := WARNING: This requires sudo/root privileges!
-MSG_DEP_INSTALL := Installing system packages with $(PKG_MGR)...
+.PHONY: all install uninstall clean info help banner check
 
-# Phony targets
-.PHONY: all install uninstall clean info check-env help install-deps-system
-
-# Help target
-help:
-	@echo "LazyFramework $(VERSION) - Makefile Help"
-	@echo "Detected system: $(DISTRO_NAME)"
-	@echo "Package manager: $(PKG_MGR)"
+# ===========================================================================
+# METASPLOIT-STYLE BANNER
+# ===========================================================================
+banner:
+	@clear 2>/dev/null || true
+	@printf "${BRIGHT_RED}"
+	@echo "                      ______"
+	@echo "                   .-\"      \"-."
+	@echo "                  /            \\"
+	@echo "${BRIGHT_YELLOW}     ${BRIGHT_RED}.${BRIGHT_YELLOW}           ${BRIGHT_RED}|${BRIGHT_YELLOW},  ${BRIGHT_RED}.${BRIGHT_YELLOW}-.${BRIGHT_RED}.${BRIGHT_YELLOW} ,${BRIGHT_RED}|${BRIGHT_YELLOW}           ${BRIGHT_RED}.${RESET}"
+	@echo "${BRIGHT_YELLOW}     |           |${BRIGHT_RED}(${BRIGHT_YELLOW} ${BRIGHT_RED}.${BRIGHT_YELLOW}_${BRIGHT_RED}.${BRIGHT_YELLOW} )${BRIGHT_RED}|${BRIGHT_YELLOW}           |${RESET}"
+	@echo "${BRIGHT_YELLOW}  ,  |           |${BRIGHT_RED}/${BRIGHT_YELLOW}  ${BRIGHT_RED}|  ${BRIGHT_YELLOW}\\${BRIGHT_RED}|${BRIGHT_YELLOW}           |  .${RESET}"
+	@echo "${BRIGHT_YELLOW}  |\\-'           |${BRIGHT_RED}\`${BRIGHT_YELLOW}-'${BRIGHT_RED}|${BRIGHT_YELLOW}\`${BRIGHT_RED}|${BRIGHT_YELLOW}           \`-'|${RESET}"
+	@echo "${BRIGHT_YELLOW}   \\             |${BRIGHT_RED}'${BRIGHT_YELLOW}---'${BRIGHT_RED}'${BRIGHT_YELLOW}|             /${RESET}"
+	@echo "${BRIGHT_YELLOW}    \\           /'${BRIGHT_RED}.${BRIGHT_YELLOW}---${BRIGHT_RED}.${BRIGHT_YELLOW}\`\\           /${RESET}"
+	@echo "${BRIGHT_YELLOW}     \\        /'${BRIGHT_RED}'${BRIGHT_YELLOW}---${BRIGHT_RED}'${BRIGHT_YELLOW}\`\`\\        /${RESET}"
+	@echo "${BRIGHT_YELLOW}      \`\\    /\`${BRIGHT_RED}'${BRIGHT_YELLOW}---${BRIGHT_RED}'${BRIGHT_YELLOW}\`\`\`\\    /\`${RESET}"
+	@echo "${BRIGHT_YELLOW}        \`\\/\`${BRIGHT_RED}'${BRIGHT_YELLOW}---${BRIGHT_RED}'${BRIGHT_YELLOW}\`\`\`\`\\/\`${RESET}"
+	@printf "${BRIGHT_RED}"
+	@echo "         =[ ${BRIGHT_YELLOW}lazyframework ${BRIGHT_RED}v$(VERSION)                    ]="
 	@echo ""
-	@echo "Available targets:"
-	@echo "  make install          - Install LazyFramework"
-	@echo "  make install-deps     - Install Python dependencies only"
-	@echo "  make install-deps-system - Install system packages"
-	@echo "  make uninstall        - Uninstall LazyFramework"
-	@echo "  make clean            - Clean temporary files"
-	@echo "  make info             - Show installation info"
-	@echo "  make check-env        - Check system environment"
+	@printf "${BRIGHT_YELLOW}"
+	@echo "    + -- --=[ ${BRIGHT_RED}$(VERSION) modules loaded${BRIGHT_YELLOW}                    ]"
+	@echo "    + -- --=[ ${BRIGHT_RED}Pentesting Framework${BRIGHT_YELLOW}                        ]"
+	@echo "    + -- --=[ ${BRIGHT_RED}Type 'help' for help menu${BRIGHT_YELLOW}                   ]"
 	@echo ""
-	@echo "Notes:"
-	@if [ $(NEED_SUDO) -eq 1 ]; then \
-		echo "  - On $(DISTRO_NAME), you may need to use 'sudo make install'"; \
-	else \
-		echo "  - On $(DISTRO_NAME), no sudo needed"; \
-	fi
+	@printf "${RESET}"
 
-# Check environment
-check-env:
-	@echo "=== System Detection ==="
-	@echo "System: $(UNAME_S)"
-	@echo "Distribution: $(DISTRO_NAME)"
-	@echo "Package manager: $(PKG_MGR)"
-	@echo "Termux PREFIX: $(TERMUX_PREFIX)"
-	@echo "Is Termux: $(IS_TERMUX)"
-	@echo "Install dir: $(INSTALL_DIR)"
-	@echo "Bin dir: $(BIN_DIR)"
-	@echo "Need sudo: $(NEED_SUDO)"
-	@echo "========================"
-
-# Main target
-all: check-env install
-
-# Installation process
-install: install-deps install-binary install-console install-desktop install-icon
+# ===========================================================================
+# SETOOLKIT-STYLE HEADER
+# ===========================================================================
+header:
+	@printf "${BRIGHT_CYAN}╔════════════════════════════════════════════════════════════════════════════════╗${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}                                                                                ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}  ${BRIGHT_RED}▄████████████████▄${RESET}   ${BRIGHT_YELLOW}██████╗ ███████╗███████╗████████╗ ${BRIGHT_RED}▄██████████████▄${RESET}   ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}  ${BRIGHT_RED}██               ██${RESET}  ${BRIGHT_YELLOW}██╔══██╗██╔════╝██╔════╝╚══██╔══╝${BRIGHT_RED}██               ██${RESET}  ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}  ${BRIGHT_RED}██   ${BRIGHT_YELLOW}▄███▄${BRIGHT_RED}   ██${RESET}  ${BRIGHT_YELLOW}██████╔╝█████╗  ███████╗   ██║   ${BRIGHT_RED}██   ${BRIGHT_YELLOW}▄████▄${BRIGHT_RED}   ██${RESET}  ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}  ${BRIGHT_RED}██   ${BRIGHT_YELLOW}▀▀▀▀▀${BRIGHT_RED}   ██${RESET}  ${BRIGHT_YELLOW}██╔══██╗██╔══╝  ╚════██║   ██║   ${BRIGHT_RED}██   ${BRIGHT_YELLOW}▀▀▀▀▀${BRIGHT_RED}   ██${RESET}  ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}  ${BRIGHT_RED}██               ██${RESET}  ${BRIGHT_YELLOW}██║  ██║███████╗███████╗   ██║   ${BRIGHT_RED}██               ██${RESET}  ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}  ${BRIGHT_RED}▀████████████████▀${RESET}   ${BRIGHT_YELLOW}╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝   ${BRIGHT_RED}▀██████████████▀${RESET}   ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}                                                                                ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}     ${BRIGHT_GREEN}╦  ╦╔═╗╦╔╦╗  ╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗╦═╗${RESET}              ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}     ${BRIGHT_GREEN}║  ║╠═╣║ ║║  ║  ║ ║║║║╠═╣║║║ ║ ╠═╣ ║ ║║ ║║║║║╣ ╠╦╝${RESET}              ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}     ${BRIGHT_GREEN}╩═╝╩╩ ╩╩═╩╝  ╚═╝╚═╝╩ ╩╩ ╩╝╚╝ ╩ ╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝╩╚═${RESET}              ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}                                                                                ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}  ${BRIGHT_MAGENTA}[${BRIGHT_YELLOW}*${BRIGHT_MAGENTA}]${RESET} ${BRIGHT_WHITE}Framework   ${BRIGHT_CYAN}:${RESET} ${BRIGHT_YELLOW}LazyFramework ${BRIGHT_RED}v$(VERSION)${RESET}                       ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}  ${BRIGHT_MAGENTA}[${BRIGHT_YELLOW}*${BRIGHT_MAGENTA}]${RESET} ${BRIGHT_WHITE}Platform    ${BRIGHT_CYAN}:${RESET} ${BRIGHT_GREEN}$(DISTRO_NAME)${RESET}                                   ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}  ${BRIGHT_MAGENTA}[${BRIGHT_YELLOW}*${BRIGHT_MAGENTA}]${RESET} ${BRIGHT_WHITE}Install Dir ${BRIGHT_CYAN}:${RESET} ${BRIGHT_BLUE}$(INSTALL_DIR)${RESET}                      ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}  ${BRIGHT_MAGENTA}[${BRIGHT_YELLOW}*${BRIGHT_MAGENTA}]${RESET} ${BRIGHT_WHITE}Modules     ${BRIGHT_CYAN}:${RESET} ${BRIGHT_YELLOW}15 Exploits ${BRIGHT_CYAN}|${RESET} ${BRIGHT_GREEN}8 Payloads ${BRIGHT_CYAN}|${RESET} ${BRIGHT_MAGENTA}12 Tools${RESET}     ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}║${RESET}                                                                                ${BRIGHT_CYAN}║${RESET}\n"
+	@printf "${BRIGHT_CYAN}╚════════════════════════════════════════════════════════════════════════════════╝${RESET}\n"
 	@echo ""
-	@echo "$(MSG_INSTALL)"
-	@echo $(MSG_GUI)
-	@echo $(MSG_CONSOLE)
-	@if [ $(IS_TERMUX) -eq 0 ]; then \
-		echo $(MSG_DESKTOP); \
-		echo $(MSG_ICON); \
-	fi
-	@echo ""
-	@if [ $(NEED_SUDO) -eq 1 ]; then \
-		echo "$(MSG_SUDO_WARN)"; \
-	fi
 
-# Install system packages (optional)
-install-deps-system:
-	@echo "=== Installing system packages ==="
-	@echo "$(MSG_DEP_INSTALL)"
+# ===========================================================================
+# INSTALLATION FLOW
+# ===========================================================================
+all: banner header check install
+
+check:
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_CYAN}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}System detection...${RESET}\n"
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_GREEN}Platform:${RESET} ${BRIGHT_CYAN}$(DISTRO_NAME)${RESET} "
 	@if [ $(IS_TERMUX) -eq 1 ]; then \
-		echo "Installing Termux packages..."; \
-		pkg update -y && pkg install -y python python-pip; \
-	elif [ $(NEED_SUDO) -eq 1 ]; then \
-		case "$(PKG_MGR)" in \
-			apt-get|apt) \
-				sudo apt-get update && sudo apt-get install -y python3 python3-pip python3-pyqt6 python3-pyqt6.qtwebengine; \
-				;; \
-			pacman) \
-				sudo pacman -Sy --noconfirm python python-pip python-pyqt6 python-pyqt6-webengine; \
-				;; \
-			dnf) \
-				sudo dnf install -y python3 python3-pip python3-qt6; \
-				;; \
-			yum) \
-				sudo yum install -y python3 python3-pip python3-qt6; \
-				;; \
-			zypper) \
-				sudo zypper install -y python3 python3-pip python3-qt6; \
-				;; \
-			apk) \
-				sudo apk add python3 py3-pip py3-pyqt6 py3-pyqt6-webengine; \
-				;; \
-			xbps) \
-				sudo xbps-install -S python3 python3-pip python3-PyQt6; \
-				;; \
-			emerge) \
-				sudo emerge --ask n dev-python/PyQt6; \
-				;; \
-			*) \
-				echo "Unknown package manager: $(PKG_MGR)"; \
-				echo "Please install python3 and pip manually"; \
-				;; \
-		esac; \
+		printf "${BRIGHT_YELLOW}(Termux)${RESET}\n"; \
 	else \
-		echo "No system packages to install or no sudo available"; \
+		printf "${BRIGHT_BLUE}(Linux)${RESET}\n"; \
 	fi
-	@echo "✓ System packages installed."
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_GREEN}Installation directory:${RESET} ${BRIGHT_BLUE}$(INSTALL_DIR)${RESET}\n"
+	@if [ $(NEED_SUDO) -eq 1 ]; then \
+		printf "${BRIGHT_YELLOW}[${BRIGHT_RED}!${BRIGHT_YELLOW}]${RESET} ${BRIGHT_RED}Root privileges required${RESET}\n"; \
+	else \
+		printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_GREEN}No root required${RESET}\n"; \
+	fi
+	@echo ""
 
-# Install Python dependencies
+install: install-deps install-binary install-console install-desktop install-icon finish
+
+# ===========================================================================
+# INSTALLATION STEPS (METASPLOIT STYLE)
+# ===========================================================================
 install-deps:
-	@echo "=== Installing Python dependencies ==="
-	@echo "Using pip: $(PIP_CMD)"
-	@if [ $(IS_TERMUX) -eq 1 ]; then \
-		echo "Installing Termux Python packages..."; \
-		$(PIP_CMD) install --upgrade pip 2>/dev/null || true; \
-		$(PIP_CMD) install rich PyQt6 PyQt6-WebEngine stem requests; \
-	else \
-		echo "Installing Linux Python packages..."; \
-		$(PIP_CMD) install --upgrade pip 2>/dev/null || true; \
-		$(PIP_CMD) install rich PyQt6 PyQt6-WebEngine stem requests; \
-	fi
-	@echo "✓ Python dependencies installed."
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_CYAN}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Installing dependencies...${RESET}\n"
+	@printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Updating pip...${RESET}"
+	@$(PIP_CMD) install --upgrade pip > /dev/null 2>&1
+	@printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"
+	@printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Installing Python packages...${RESET}"
+	@$(PIP_CMD) install rich PyQt6 PyQt6-WebEngine stem requests > /dev/null 2>&1
+	@printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_GREEN}Dependencies installed successfully${RESET}\n"
+	@echo ""
 
-# Install application and binaries
 install-binary:
-	@echo "=== Installing application files ==="
-	@# Create directories
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_CYAN}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Installing framework binaries...${RESET}\n"
+	@# Create directory
 	@if [ $(NEED_SUDO) -eq 1 ]; then \
+		printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Creating directory ${BRIGHT_BLUE}$(INSTALL_DIR)${RESET}"; \
 		sudo mkdir -p "$(INSTALL_DIR)" 2>/dev/null || mkdir -p "$(INSTALL_DIR)"; \
+		printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"; \
 	else \
+		printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Creating directory ${BRIGHT_BLUE}$(INSTALL_DIR)${RESET}"; \
 		mkdir -p "$(INSTALL_DIR)"; \
+		printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"; \
 	fi
 	
 	@# Copy files
-	@echo "Copying files to $(INSTALL_DIR)..."
+	@printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Copying framework files...${RESET}"
 	@if [ $(NEED_SUDO) -eq 1 ]; then \
 		sudo cp -r *.py "$(INSTALL_DIR)/" 2>/dev/null || true; \
 		for dir in bin modules core data themes; do \
@@ -252,9 +196,6 @@ install-binary:
 		done; \
 		if [ -f "lzfconsole" ]; then \
 			sudo cp lzfconsole "$(INSTALL_DIR)/" 2>/dev/null || true; \
-		fi; \
-		if [ -f "requirements.txt" ]; then \
-			sudo cp requirements.txt "$(INSTALL_DIR)/" 2>/dev/null || true; \
 		fi; \
 	else \
 		cp -r *.py "$(INSTALL_DIR)/" 2>/dev/null || true; \
@@ -266,13 +207,11 @@ install-binary:
 		if [ -f "lzfconsole" ]; then \
 			cp lzfconsole "$(INSTALL_DIR)/" 2>/dev/null || true; \
 		fi; \
-		if [ -f "requirements.txt" ]; then \
-			cp requirements.txt "$(INSTALL_DIR)/" 2>/dev/null || true; \
-		fi; \
 	fi
+	@printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"
 	
-	@# Create GUI launcher
-	@echo "Creating launcher in $(BIN_DIR)..."
+	@# Create launcher
+	@printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Creating launcher...${RESET}"
 	@if [ $(NEED_SUDO) -eq 1 ]; then \
 		sudo mkdir -p "$(BIN_DIR)"; \
 		echo '#!/bin/bash' | sudo tee "$(BIN_DIR)/lazyframework" > /dev/null; \
@@ -286,71 +225,77 @@ install-binary:
 		echo 'exec python3 lzfconsole --gui "$$@"' >> "$(BIN_DIR)/lazyframework"; \
 		chmod +x "$(BIN_DIR)/lazyframework"; \
 	fi
-	@echo "✓ Application installed."
+	@printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_GREEN}Framework binaries installed${RESET}\n"
+	@echo ""
 
-# Install console launcher
 install-console:
-	@echo "=== Installing console launcher ==="
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_CYAN}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Installing console launcher...${RESET}\n"
 	@if [ $(NEED_SUDO) -eq 1 ]; then \
 		if [ -f "lzfconsole" ]; then \
+			printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Copying lzfconsole to ${BRIGHT_BLUE}$(BIN_DIR)${RESET}"; \
 			sudo cp lzfconsole "$(BIN_DIR)/" 2>/dev/null || true; \
 			sudo chmod +x "$(BIN_DIR)/lzfconsole" 2>/dev/null || true; \
+			printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"; \
 		fi; \
 	else \
 		if [ -f "lzfconsole" ]; then \
+			printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Copying lzfconsole to ${BRIGHT_BLUE}$(BIN_DIR)${RESET}"; \
 			cp lzfconsole "$(BIN_DIR)/" 2>/dev/null || true; \
 			chmod +x "$(BIN_DIR)/lzfconsole" 2>/dev/null || true; \
+			printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"; \
 		fi; \
 	fi
-	@echo "✓ Console launcher installed."
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_GREEN}Console launcher installed${RESET}\n"
+	@echo ""
 
-# Install desktop entry (Linux only)
 install-desktop:
-	@echo "=== Installing desktop entry ==="
-	@if [ $(IS_TERMUX) -eq 1 ]; then \
-		echo "Skipping desktop entry for Termux..."; \
-	else \
+	@if [ $(IS_TERMUX) -eq 0 ]; then \
+		printf "${BRIGHT_YELLOW}[${BRIGHT_CYAN}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Installing desktop entry...${RESET}\n"; \
 		if [ $(NEED_SUDO) -eq 1 ]; then \
+			printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Creating desktop file${RESET}"; \
 			sudo mkdir -p "$(DESKTOP_DIR)"; \
 			sudo sh -c 'echo "[Desktop Entry]" > "$(DESKTOP_DIR)/lazyframework.desktop"'; \
 			sudo sh -c 'echo "Version=1.0" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
 			sudo sh -c 'echo "Type=Application" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
 			sudo sh -c 'echo "Name=LazyFramework" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
 			sudo sh -c 'echo "GenericName=Penetration Testing Framework" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
-			sudo sh -c 'echo "Comment=Professional Exploitation & Security Testing Framework" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
+			sudo sh -c 'echo "Comment=Professional Security Testing Framework" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
 			sudo sh -c 'echo "Exec=lazyframework" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
 			sudo sh -c 'echo "Icon=lazyframework" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
-			sudo sh -c 'echo "Categories=Utility;Development;" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
+			sudo sh -c 'echo "Categories=Utility;Security;Development;" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
 			sudo sh -c 'echo "Terminal=false" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
 			sudo sh -c 'echo "StartupNotify=true" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
 			sudo sh -c 'echo "StartupWMClass=LazyFrameworkGUI" >> "$(DESKTOP_DIR)/lazyframework.desktop"'; \
 			sudo chmod 644 "$(DESKTOP_DIR)/lazyframework.desktop"; \
+			printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"; \
 		else \
+			printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Creating desktop file${RESET}"; \
 			mkdir -p "$(DESKTOP_DIR)"; \
 			echo "[Desktop Entry]" > "$(DESKTOP_DIR)/lazyframework.desktop"; \
 			echo "Version=1.0" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
 			echo "Type=Application" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
 			echo "Name=LazyFramework" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
 			echo "GenericName=Penetration Testing Framework" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
-			echo "Comment=Professional Exploitation & Security Testing Framework" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
+			echo "Comment=Professional Security Testing Framework" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
 			echo "Exec=lazyframework" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
 			echo "Icon=lazyframework" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
-			echo "Categories=Utility;Development;" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
+			echo "Categories=Utility;Security;Development;" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
 			echo "Terminal=false" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
 			echo "StartupNotify=true" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
 			echo "StartupWMClass=LazyFrameworkGUI" >> "$(DESKTOP_DIR)/lazyframework.desktop"; \
 			chmod 644 "$(DESKTOP_DIR)/lazyframework.desktop"; \
+			printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"; \
 		fi; \
-		echo "✓ Desktop entry installed."; \
+		printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_GREEN}Desktop entry installed${RESET}\n"; \
+		echo ""; \
 	fi
 
-# Install icon (Linux only)
 install-icon:
-	@echo "=== Installing icon ==="
-	@if [ $(IS_TERMUX) -eq 1 ]; then \
-		echo "Skipping icon for Termux..."; \
-	else \
+	@if [ $(IS_TERMUX) -eq 0 ]; then \
+		printf "${BRIGHT_YELLOW}[${BRIGHT_CYAN}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Installing application icon...${RESET}\n"; \
 		if [ $(NEED_SUDO) -eq 1 ]; then \
+			printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Creating SVG icon${RESET}"; \
 			sudo mkdir -p "$(ICON_DIR)"; \
 			sudo sh -c 'echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "$(ICON_DIR)/lazyframework.svg"'; \
 			sudo sh -c 'echo "<svg width=\"256\" height=\"256\" viewBox=\"0 0 256 256\" xmlns=\"http://www.w3.org/2000/svg\">" >> "$(ICON_DIR)/lazyframework.svg"'; \
@@ -360,7 +305,9 @@ install-icon:
 			sudo sh -c 'echo "<text x=\"128\" y=\"145\" text-anchor=\"middle\" font-family=\"Arial, sans-serif\" font-size=\"18\" fill=\"#8be9fd\">Framework</text>" >> "$(ICON_DIR)/lazyframework.svg"'; \
 			sudo sh -c 'echo "<path d=\"M60 170 H196 M60 185 H180 M60 200 H160\" stroke=\"#6272a4\" stroke-width=\"4\" stroke-linecap=\"round\"/>" >> "$(ICON_DIR)/lazyframework.svg"'; \
 			sudo sh -c 'echo "</svg>" >> "$(ICON_DIR)/lazyframework.svg"'; \
+			printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"; \
 		else \
+			printf "    ${BRIGHT_YELLOW}[${BRIGHT_BLUE}→${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Creating SVG icon${RESET}"; \
 			mkdir -p "$(ICON_DIR)"; \
 			echo '<?xml version="1.0" encoding="UTF-8"?>' > "$(ICON_DIR)/lazyframework.svg"; \
 			echo '<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">' >> "$(ICON_DIR)/lazyframework.svg"; \
@@ -370,70 +317,131 @@ install-icon:
 			echo '<text x="128" y="145" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#8be9fd">Framework</text>' >> "$(ICON_DIR)/lazyframework.svg"; \
 			echo '<path d="M60 170 H196 M60 185 H180 M60 200 H160" stroke="#6272a4" stroke-width="4" stroke-linecap="round"/>' >> "$(ICON_DIR)/lazyframework.svg"; \
 			echo '</svg>' >> "$(ICON_DIR)/lazyframework.svg"; \
+			printf " ${BRIGHT_GREEN}[DONE]${RESET}\n"; \
 		fi; \
-		echo "✓ Icon installed."; \
+		printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_GREEN}Icon installed${RESET}\n"; \
+		echo ""; \
 	fi
 
-# Uninstall LazyFramework
+finish:
+	@sleep 0.5
+	@printf "${BRIGHT_GREEN}"
+	@echo "   ▄████████    ▄████████    ▄████████    ▄████████ "
+	@echo "  ███    ███   ███    ███   ███    ███   ███    ███ "
+	@echo "  ███    ███   ███    ███   ███    █▀    ███    █▀  "
+	@echo "  ███    ███  ▄███▄▄▄▄██▀  ▄███▄▄▄       ███        "
+	@echo "▀███████████ ▀▀███▀▀▀▀▀   ▀▀███▀▀▀     ▀███████████ "
+	@echo "  ███    ███ ▀███████████   ███    █▄           ███ "
+	@echo "  ███    ███   ███    ███   ███    ███    ▄█    ███ "
+	@echo "  ███    █▀    ███    ███   ██████████  ▄████████▀  "
+	@echo "               ███    ███                           "
+	@printf "${RESET}"
+	@echo ""
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}LazyFramework ${BRIGHT_RED}v$(VERSION) ${BRIGHT_GREEN}installation complete!${RESET}\n"
+	@echo ""
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_CYAN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Launch the framework:${RESET}\n"
+	@printf "    ${BRIGHT_YELLOW}└─${BRIGHT_CYAN} ${BRIGHT_GREEN}lazyframework${RESET}   ${BRIGHT_WHITE}→ GUI interface (recommended)${RESET}\n"
+	@printf "    ${BRIGHT_YELLOW}└─${BRIGHT_CYAN} ${BRIGHT_GREEN}lzfconsole${RESET}      ${BRIGHT_WHITE}→ Console interface${RESET}\n"
+	@echo ""
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_CYAN}!${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Need help? Type:${RESET} ${BRIGHT_GREEN}lazyframework --help${RESET}\n"
+	@echo ""
+
+# ===========================================================================
+# UNINSTALL (SETOOLKIT STYLE)
+# ===========================================================================
 uninstall:
-	@echo "=== Uninstalling LazyFramework ==="
-	@echo "System: $(DISTRO_NAME)"
-	@if [ $(NEED_SUDO) -eq 1 ]; then \
-		echo "Removing with sudo..."; \
-		sudo rm -rf "$(INSTALL_DIR)" 2>/dev/null || true; \
-		sudo rm -f "$(BIN_DIR)/lazyframework" "$(BIN_DIR)/lzfconsole" 2>/dev/null || true; \
-		if [ $(IS_TERMUX) -eq 0 ]; then \
-			sudo rm -f "$(DESKTOP_DIR)/lazyframework.desktop" 2>/dev/null || true; \
-			sudo rm -f "$(ICON_DIR)/lazyframework.svg" 2>/dev/null || true; \
-		fi; \
-	else \
-		echo "Removing without sudo..."; \
-		rm -rf "$(INSTALL_DIR)" 2>/dev/null || true; \
-		rm -f "$(BIN_DIR)/lazyframework" "$(BIN_DIR)/lzfconsole" 2>/dev/null || true; \
-		if [ $(IS_TERMUX) -eq 0 ]; then \
-			rm -f "$(DESKTOP_DIR)/lazyframework.desktop" 2>/dev/null || true; \
-			rm -f "$(ICON_DIR)/lazyframework.svg" 2>/dev/null || true; \
-		fi; \
+	@printf "${BRIGHT_RED}"
+	@echo "   ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄            ▄▄▄▄▄▄▄▄▄▄▄ "
+	@echo "  ▐░░░░░░░░░░░▌▐░░░░░░░░░░▌ ▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░▌          ▐░░░░░░░░░░░▌"
+	@echo "  ▐░█▀▀▀▀▀▀▀▀▀ ▐░█▀▀▀▀▀▀▀█░▌▐░█▀▀▀▀▀▀▀▀▀ ▐░█▀▀▀▀▀▀▀▀▀  ▀▀▀▀█░█▀▀▀▀ ▐░▌           ▀▀▀▀█░█▀▀▀▀ "
+	@echo "  ▐░▌          ▐░▌       ▐░▌▐░▌          ▐░▌               ▐░▌     ▐░▌               ▐░▌     "
+	@echo "  ▐░█▄▄▄▄▄▄▄▄▄ ▐░█▄▄▄▄▄▄▄█░▌▐░█▄▄▄▄▄▄▄▄▄ ▐░▌               ▐░▌     ▐░▌               ▐░▌     "
+	@echo "  ▐░░░░░░░░░░░▌▐░░░░░░░░░░▌ ▐░░░░░░░░░░░▌▐░▌               ▐░▌     ▐░▌               ▐░▌     "
+	@echo "   ▀▀▀▀▀▀▀▀▀█░▌▐░█▀▀▀▀▀▀▀█░▌▐░█▀▀▀▀▀▀▀▀▀ ▐░▌               ▐░▌     ▐░▌               ▐░▌     "
+	@echo "            ▐░▌▐░▌       ▐░▌▐░▌          ▐░▌               ▐░▌     ▐░▌               ▐░▌     "
+	@echo "   ▄▄▄▄▄▄▄▄▄█░▌▐░▌       ▐░▌▐░█▄▄▄▄▄▄▄▄▄ ▐░█▄▄▄▄▄▄▄▄▄      ▐░▌     ▐░█▄▄▄▄▄▄▄▄▄  ▄▄▄▄█░█▄▄▄▄ "
+	@echo "  ▐░░░░░░░░░░░▌▐░▌       ▐░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌     ▐░▌     ▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌"
+	@echo "   ▀▀▀▀▀▀▀▀▀▀▀  ▀         ▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀       ▀       ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀ "
+	@printf "${RESET}"
+	@echo ""
+	@printf "${BRIGHT_RED}[${BRIGHT_YELLOW}!${BRIGHT_RED}]${RESET} ${BRIGHT_WHITE}WARNING: This will remove LazyFramework completely!${RESET}\n"
+	@echo ""
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_RED}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Files to be removed:${RESET}\n"
+	@printf "    ${BRIGHT_RED}├─${RESET} ${BRIGHT_BLUE}$(INSTALL_DIR)${RESET}\n"
+	@printf "    ${BRIGHT_RED}├─${RESET} ${BRIGHT_BLUE}$(BIN_DIR)/lazyframework${RESET}\n"
+	@printf "    ${BRIGHT_RED}├─${RESET} ${BRIGHT_BLUE}$(BIN_DIR)/lzfconsole${RESET}\n"
+	@if [ $(IS_TERMUX) -eq 0 ]; then \
+		printf "    ${BRIGHT_RED}├─${RESET} ${BRIGHT_BLUE}$(DESKTOP_DIR)/lazyframework.desktop${RESET}\n"; \
+		printf "    ${BRIGHT_RED}└─${RESET} ${BRIGHT_BLUE}$(ICON_DIR)/lazyframework.svg${RESET}\n"; \
 	fi
-	@echo "$(MSG_UNINSTALL)"
+	@echo ""
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_RED}?${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Are you sure you want to continue? [y/N] ${RESET}"
+	@read -p "" choice; \
+	if [ "$$choice" = "y" ] || [ "$$choice" = "Y" ]; then \
+		echo ""; \
+		printf "${BRIGHT_YELLOW}[${BRIGHT_RED}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Removing LazyFramework...${RESET}\n"; \
+		if [ $(NEED_SUDO) -eq 1 ]; then \
+			sudo rm -rf "$(INSTALL_DIR)" 2>/dev/null || true; \
+			sudo rm -f "$(BIN_DIR)/lazyframework" "$(BIN_DIR)/lzfconsole" 2>/dev/null || true; \
+			if [ $(IS_TERMUX) -eq 0 ]; then \
+				sudo rm -f "$(DESKTOP_DIR)/lazyframework.desktop" 2>/dev/null || true; \
+				sudo rm -f "$(ICON_DIR)/lazyframework.svg" 2>/dev/null || true; \
+			fi; \
+		else \
+			rm -rf "$(INSTALL_DIR)" 2>/dev/null || true; \
+			rm -f "$(BIN_DIR)/lazyframework" "$(BIN_DIR)/lzfconsole" 2>/dev/null || true; \
+			if [ $(IS_TERMUX) -eq 0 ]; then \
+				rm -f "$(DESKTOP_DIR)/lazyframework.desktop" 2>/dev/null || true; \
+				rm -f "$(ICON_DIR)/lazyframework.svg" 2>/dev/null || true; \
+			fi; \
+		fi; \
+		printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_GREEN}LazyFramework has been uninstalled!${RESET}\n"; \
+	else \
+		echo ""; \
+		printf "${BRIGHT_YELLOW}[${BRIGHT_CYAN}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_CYAN}Uninstallation cancelled.${RESET}\n"; \
+	fi
+	@echo ""
 
-# Clean temporary files
+# ===========================================================================
+# UTILITIES
+# ===========================================================================
 clean:
-	@echo "Cleaning temporary files..."
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_CYAN}*${BRIGHT_YELLOW}]${RESET} ${BRIGHT_WHITE}Cleaning temporary files...${RESET}\n"
 	@find . -name "*.pyc" -delete 2>/dev/null || true
 	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name ".pytest_cache" -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name "*.log" -delete 2>/dev/null || true
-	@echo "✓ Temporary files cleaned."
+	@printf "${BRIGHT_YELLOW}[${BRIGHT_GREEN}+${BRIGHT_YELLOW}]${RESET} ${BRIGHT_GREEN}Cleanup complete!${RESET}\n"
+	@echo ""
 
-# Display installation status information
 info:
-	@echo "=== LazyFramework Installation Info ==="
-	@echo "System: $(DISTRO_NAME)"
-	@echo "Distribution: $(DISTRO_NAME)"
-	@echo "Package manager: $(PKG_MGR)"
-	@echo "Installation directory: $(INSTALL_DIR)"
-	@echo "Binary directory: $(BIN_DIR)"
+	@printf "${BRIGHT_CYAN}"
+	@echo "    ╔══════════════════════════════════════════════════════════╗"
+	@echo "    ║                    ${BRIGHT_YELLOW}SYSTEM INFORMATION${BRIGHT_CYAN}                    ║"
+	@echo "    ╠══════════════════════════════════════════════════════════╣"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_WHITE}Framework${BRIGHT_CYAN}:${RESET} ${BRIGHT_GREEN}LazyFramework ${BRIGHT_RED}v$(VERSION)${BRIGHT_CYAN}                     ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_WHITE}Platform${BRIGHT_CYAN}:${RESET} ${BRIGHT_BLUE}$(DISTRO_NAME)${BRIGHT_CYAN}                               ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_WHITE}Install Dir${BRIGHT_CYAN}:${RESET} ${BRIGHT_YELLOW}$(INSTALL_DIR)${BRIGHT_CYAN}                 ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_WHITE}Bin Dir${BRIGHT_CYAN}:${RESET} ${BRIGHT_YELLOW}$(BIN_DIR)${BRIGHT_CYAN}                           ║\n"
+	@printf "${BRIGHT_CYAN}    ║                                                    ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_WHITE}Available Commands:${BRIGHT_CYAN}                              ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_GREEN}lazyframework${BRIGHT_CYAN}  - GUI interface                    ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_GREEN}lzfconsole${BRIGHT_CYAN}     - Console interface               ║\n"
+	@printf "${BRIGHT_CYAN}    ║                                                    ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_WHITE}Make Commands:${BRIGHT_CYAN}                                  ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_YELLOW}make install${BRIGHT_CYAN}   - Install framework              ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_YELLOW}make uninstall${BRIGHT_CYAN} - Remove framework               ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_YELLOW}make clean${BRIGHT_CYAN}     - Clean temporary files         ║\n"
+	@printf "${BRIGHT_CYAN}    ║  ${BRIGHT_YELLOW}make info${BRIGHT_CYAN}      - Show this information         ║\n"
+	@printf "${BRIGHT_CYAN}    ╚══════════════════════════════════════════════════════════╝\n"
+	@printf "${RESET}"
 	@echo ""
-	@echo "Commands available:"
-	@echo "  lazyframework   - GUI mode"
-	@echo "  lzfconsole      - Console mode"
-	@echo ""
-	@echo "Current status:"
-	@if [ -f "$(BIN_DIR)/lazyframework" ]; then echo "✓ lazyframework command installed"; else echo "✗ lazyframework command missing"; fi
-	@if [ -f "$(BIN_DIR)/lzfconsole" ]; then echo "✓ lzfconsole command installed"; else echo "✗ lzfconsole command missing"; fi
-	@if [ $(IS_TERMUX) -eq 0 ]; then \
-		if [ -f "$(DESKTOP_DIR)/lazyframework.desktop" ]; then echo "✓ Desktop entry installed"; else echo "✗ Desktop entry missing"; fi; \
-		if [ -f "$(ICON_DIR)/lazyframework.svg" ]; then echo "✓ Icon installed"; else echo "✗ Icon missing"; fi; \
-	fi
-	@echo "====================================="
 
-# Test distribution detection
-test-distro:
-	@echo "Testing distribution detection..."
-	@echo "UNAME_S: $(UNAME_S)"
-	@echo "TERMUX_PREFIX: $(TERMUX_PREFIX)"
-	@echo "DISTRO_NAME: $(DISTRO_NAME)"
-	@echo "PKG_MGR: $(PKG_MGR)"
-	@echo "IS_TERMUX: $(IS_TERMUX)"
-	@echo "NEED_SUDO: $(NEED_SUDO)"
+help:
+	@make info
+
+# Test colors
+test-colors:
+	@printf "${BRIGHT_RED}BRIGHT_RED ${BRIGHT_GREEN}BRIGHT_GREEN ${BRIGHT_YELLOW}BRIGHT_YELLOW ${BRIGHT_BLUE}BRIGHT_BLUE ${BRIGHT_MAGENTA}BRIGHT_MAGENTA ${BRIGHT_CYAN}BRIGHT_CYAN${RESET}\n"
+	@printf "${RED}RED ${GREEN}GREEN ${YELLOW}YELLOW ${BLUE}BLUE ${MAGENTA}MAGENTA ${CYAN}CYAN${RESET}\n"
+	@printf "${BG_RED}${WHITE}BG_RED ${BG_GREEN}${BLACK}BG_GREEN ${BG_YELLOW}${BLACK}BG_YELLOW ${BG_BLUE}${WHITE}BG_BLUE${RESET}\n"
